@@ -301,6 +301,23 @@ class AskAiAsyncTimeoutTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("timed out", " ".join(cm.output).lower())
 
 
+class AskAiAsyncErrorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_unexpected_exception_logs_details_and_hides_message(self):
+        async def fake_create_subprocess_exec(*_args, **_kwargs):
+            raise RuntimeError("boom")
+
+        with patch("ai.bot.os.path.isfile", return_value=True), \
+            patch("ai.bot.powershell_prefix", return_value=[]), \
+            patch("ai.bot.asyncio.create_subprocess_exec", new=fake_create_subprocess_exec):
+            with self.assertLogs("nightshade-bot", level="ERROR") as cm:
+                message, code = await bot.ask_ai_async("hello")
+
+        self.assertEqual("⚠️ Error calling AI. Please try again later.", message)
+        self.assertEqual(1, code)
+        self.assertNotIn("boom", message)
+        self.assertIn("boom", " ".join(cm.output))
+
+
 class ConfigEnvironmentOverrideTests(unittest.TestCase):
     def tearDown(self):
         importlib.reload(bot)

@@ -139,9 +139,9 @@ async def ask_ai_async(question: str) -> Tuple[str, int]:
 
     except FileNotFoundError:
         return ("❌ PowerShell (pwsh/powershell) not found. Install PowerShell 7 or fix PATH.", 127)
-    except Exception as e:
+    except Exception:
         log.exception("Error calling AI")
-        return (f"⚠️ Error calling AI: {e}", 1)
+        return ("⚠️ Error calling AI. Please try again later.", 1)
 
 def is_cooldown_ok(guild_id: int, user_id: int, now: float) -> bool:
     key = (guild_id, user_id)
