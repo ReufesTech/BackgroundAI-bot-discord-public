@@ -54,6 +54,33 @@ It merges reasoning and creativity from multiple LLMs into one unified, human-li
 
 ---
 
+## 🛠️ Prerequisites
+
+Make sure the following tooling is available before launching the bot:
+
+- **PowerShell 7+** — required for the orchestrator script. Install via [PowerShell official docs](https://learn.microsoft.com/powershell/scripting/install/installing-powershell).
+- **Ollama CLI** — used to host local language models. Follow the [Ollama installation guide](https://github.com/ollama/ollama#ollama).
+- **Ollama models** — ensure the models listed below are available locally so they can be orchestrated:
+  - `llama2-uncensored:7b`
+  - `mistral-openorca:7b`
+
+The Python layer invokes `BackgroundAI_Bot.ps1`, so `pwsh` (PowerShell 7) or `powershell` must be discoverable on your `PATH`. Runtime configuration relies on these environment variables:
+
+- `DISCORD_TOKEN` — Discord bot token.
+- `OLLAMA_HOST` — URL of the Ollama daemon (defaults to `http://localhost:11434`).
+- `NIGHTSHADE_PERSONA` — override text for the default persona prompt.
+
+Before starting `python ai/bot.py`, confirm your environment is ready:
+
+```bash
+pwsh --version
+ollama list
+```
+
+If the required models are missing from `ollama list`, pull them first (e.g., `ollama pull llama2-uncensored:7b`).
+
+---
+
 ## 🔧 Configuration
 
 Customize the bot’s runtime behavior with environment variables:
