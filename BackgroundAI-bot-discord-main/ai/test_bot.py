@@ -165,6 +165,50 @@ class SplitDiscordMessageTests(unittest.TestCase):
         self.assertEqual("chunk3 trailing   \nchunk4", chunks[2])
 
 
+class IsCooldownOkTests(unittest.TestCase):
+    def setUp(self):
+        self._original_last_user_ask_at = dict(bot.last_user_ask_at)
+        bot.last_user_ask_at.clear()
+
+    def tearDown(self):
+        bot.last_user_ask_at.clear()
+        bot.last_user_ask_at.update(self._original_last_user_ask_at)
+
+    def test_first_call_allows_and_records_timestamp(self):
+        guild_id = 123
+        user_id = 456
+        now = 100.0
+
+        allowed = bot.is_cooldown_ok(guild_id, user_id, now)
+
+        self.assertTrue(allowed)
+        self.assertEqual(now, bot.last_user_ask_at[(guild_id, user_id)])
+
+    def test_immediate_second_call_is_blocked(self):
+        guild_id = 123
+        user_id = 456
+        now = 100.0
+
+        first_allowed = bot.is_cooldown_ok(guild_id, user_id, now)
+        second_allowed = bot.is_cooldown_ok(guild_id, user_id, now)
+
+        self.assertTrue(first_allowed)
+        self.assertFalse(second_allowed)
+        self.assertEqual(now, bot.last_user_ask_at[(guild_id, user_id)])
+
+    def test_call_after_cooldown_is_allowed_and_updates_timestamp(self):
+        guild_id = 123
+        user_id = 456
+        first_ts = 100.0
+        second_ts = first_ts + bot.PER_USER_COOLDOWN_SEC
+
+        bot.is_cooldown_ok(guild_id, user_id, first_ts)
+        allowed_after_cooldown = bot.is_cooldown_ok(guild_id, user_id, second_ts)
+
+        self.assertTrue(allowed_after_cooldown)
+        self.assertEqual(second_ts, bot.last_user_ask_at[(guild_id, user_id)])
+
+
 class PowershellPrefixTests(unittest.TestCase):
     @patch("ai.bot.shutil.which")
     def test_prefers_pwsh_when_available(self, mock_which):
