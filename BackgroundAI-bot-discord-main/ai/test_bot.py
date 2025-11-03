@@ -53,7 +53,7 @@ def _install_discord_stub():
     class Checks:
         @staticmethod
         def has_permissions(**kwargs):
-            return _passthrough_decorator
+            return _passthrough_decorator()
 
     app_commands_stub.checks = Checks
     app_commands_stub.MissingPermissions = type("MissingPermissions", (Exception,), {})
@@ -191,6 +191,30 @@ class ResponseFormattingLimitTests(unittest.TestCase):
         for chunk in chunks:
             formatted = f"{header}{chunk}"
             self.assertLessEqual(len(formatted), limit)
+
+
+class StartCommandErrorHandlerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_permissions_error_sends_manage_channels_notice(self):
+        send_message = AsyncMock()
+        interaction = types.SimpleNamespace(response=types.SimpleNamespace(send_message=send_message))
+        error = bot.app_commands.MissingPermissions(["manage_channels"])
+
+        await bot.start_error(interaction, error)
+
+        send_message.assert_awaited_once_with(
+            "❌ You need **Manage Channels** to use this.", ephemeral=True
+        )
+
+    async def test_other_errors_send_generic_message(self):
+        send_message = AsyncMock()
+        interaction = types.SimpleNamespace(response=types.SimpleNamespace(send_message=send_message))
+        error = bot.app_commands.AppCommandError("boom")
+
+        await bot.start_error(interaction, error)
+
+        send_message.assert_awaited_once_with(
+            "⚠️ Error processing command.", ephemeral=True
+        )
 
 
 class IsCooldownOkTests(unittest.TestCase):
