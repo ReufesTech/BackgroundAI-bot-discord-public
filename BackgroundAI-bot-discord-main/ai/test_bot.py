@@ -165,6 +165,33 @@ class SplitDiscordMessageTests(unittest.TestCase):
         self.assertEqual("chunk3 trailing   \nchunk4", chunks[2])
 
 
+class ResponseFormattingLimitTests(unittest.TestCase):
+    def test_formatted_messages_stay_within_limit_without_exit_prefix(self):
+        header = bot.MESSAGE_HEADER
+        limit = bot.DISCORD_MESSAGE_LIMIT
+        chunk_limit = max(1, limit - len(header))
+        response = "a" * limit
+
+        chunks = bot.split_discord_message(response, limit=chunk_limit)
+
+        for chunk in chunks:
+            formatted = f"{header}{chunk}"
+            self.assertLessEqual(len(formatted), limit)
+
+    def test_formatted_messages_stay_within_limit_with_exit_prefix(self):
+        header = bot.MESSAGE_HEADER
+        limit = bot.DISCORD_MESSAGE_LIMIT
+        chunk_limit = max(1, limit - len(header))
+        response = "a" * limit
+        prefix = "[exit 42] "
+
+        chunks = bot.split_discord_message(prefix + response, limit=chunk_limit)
+
+        for chunk in chunks:
+            formatted = f"{header}{chunk}"
+            self.assertLessEqual(len(formatted), limit)
+
+
 class IsCooldownOkTests(unittest.TestCase):
     def setUp(self):
         self._original_last_user_ask_at = dict(bot.last_user_ask_at)

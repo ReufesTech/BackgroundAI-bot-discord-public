@@ -20,6 +20,9 @@ AI_TIMEOUT_SEC = 240                 # overall PS roundtrip timeout
 PER_USER_COOLDOWN_SEC = 4            # simple flood control
 THINKING_MESSAGE = "⏳ Thinking…"
 
+DISCORD_MESSAGE_LIMIT = 2000
+MESSAGE_HEADER = f"🤖 {AI_NAME}:\n"
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 POWERSHELL_SCRIPT = os.path.join(SCRIPT_DIR, "BackgroundAI_Bot.ps1")
 
@@ -251,9 +254,12 @@ async def on_message(message: discord.Message):
 
         # Tag nonzero exit with a subtle prefix to aid debugging
         prefix = "" if exit_code == 0 else f"[exit {exit_code}] "
-        for chunk in split_discord_message(prefix + response):
+        header = MESSAGE_HEADER
+        chunk_limit = max(1, DISCORD_MESSAGE_LIMIT - len(header))
+        text_to_split = prefix + response
+        for chunk in split_discord_message(text_to_split, limit=chunk_limit):
             await message.channel.send(
-                f"🤖 {AI_NAME}:\n{chunk}",
+                f"{header}{chunk}",
                 allowed_mentions=mentions_none()
             )
 
