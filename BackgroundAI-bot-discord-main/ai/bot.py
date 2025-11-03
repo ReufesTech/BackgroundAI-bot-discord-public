@@ -4,6 +4,7 @@ import asyncio
 import sys
 import logging
 import shutil
+import contextlib
 from typing import Dict, Tuple, List
 
 import discord
@@ -105,7 +106,10 @@ async def ask_ai_async(question: str) -> Tuple[str, int]:
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=AI_TIMEOUT_SEC)
         except asyncio.TimeoutError:
+            log.warning("AI timed out after %ss; terminating child process.", AI_TIMEOUT_SEC)
             proc.kill()
+            with contextlib.suppress(ProcessLookupError):
+                await proc.wait()
             return (f"⚠️ AI timed out after {AI_TIMEOUT_SEC}s. Try again with a shorter question.", 124)
 
         exit_code = await proc.wait()

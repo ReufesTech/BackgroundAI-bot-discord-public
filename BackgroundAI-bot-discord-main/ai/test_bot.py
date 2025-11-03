@@ -1,8 +1,9 @@
+import asyncio
 import os
 import sys
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 
 def _install_discord_stub():
@@ -126,6 +127,41 @@ class PowershellPrefixTests(unittest.TestCase):
     def test_raises_when_no_powershell_available(self, mock_which):
         with self.assertRaises(FileNotFoundError):
             bot.powershell_prefix()
+
+
+class AskAiAsyncTimeoutTests(unittest.IsolatedAsyncioTestCase):
+    async def test_timeout_kills_and_reaps_process(self):
+        class DummyProc:
+            def __init__(self):
+                self.killed = False
+                self.wait = AsyncMock(return_value=0)
+                self.communicate = AsyncMock(return_value=(b"", None))
+
+            def kill(self):
+                self.killed = True
+
+        dummy_proc = DummyProc()
+
+        async def fake_create_subprocess_exec(*_args, **_kwargs):
+            return dummy_proc
+
+        async def fake_wait_for(awaitable, timeout):
+            if hasattr(awaitable, "close"):
+                awaitable.close()
+            raise asyncio.TimeoutError
+
+        with patch("ai.bot.os.path.isfile", return_value=True), \
+            patch("ai.bot.powershell_prefix", return_value=[]), \
+            patch("ai.bot.asyncio.create_subprocess_exec", new=fake_create_subprocess_exec), \
+            patch("ai.bot.asyncio.wait_for", new=fake_wait_for):
+            with self.assertLogs("nightshade-bot", level="WARNING") as cm:
+                message, code = await bot.ask_ai_async("hello")
+
+        self.assertIn("timed out", message)
+        self.assertEqual(code, 124)
+        self.assertTrue(dummy_proc.killed)
+        self.assertEqual(dummy_proc.wait.await_count, 1)
+        self.assertIn("timed out", " ".join(cm.output).lower())
 
 
 if __name__ == "__main__":
