@@ -3,6 +3,8 @@ import re
 import asyncio
 import sys
 import logging
+import shutil
+import contextlib
 from typing import Dict, Tuple, List
 
 import discord
@@ -12,11 +14,29 @@ from discord.ext import commands
 # -------------------------
 # Config
 # -------------------------
-AI_NAME = "NightshadeAI"
-MAX_QUESTIONS_PER_SERVER = 400
-AI_TIMEOUT_SEC = 240                 # overall PS roundtrip timeout
-PER_USER_COOLDOWN_SEC = 4            # simple flood control
-THINKING_MESSAGE = "⏳ Thinking…"
+
+
+def _get_positive_number_env(var_name: str, default, caster):
+    value = os.getenv(var_name)
+    if value is None:
+        return default
+    try:
+        parsed = caster(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{var_name} must be a positive {caster.__name__}") from exc
+    if parsed <= 0:
+        raise ValueError(f"{var_name} must be positive")
+    return parsed
+
+
+AI_NAME = os.getenv("AI_NAME", "NightshadeAI")
+MAX_QUESTIONS_PER_SERVER = _get_positive_number_env("MAX_QUESTIONS_PER_SERVER", 400, int)
+AI_TIMEOUT_SEC = _get_positive_number_env("AI_TIMEOUT_SEC", 240, float)  # overall PS roundtrip timeout
+PER_USER_COOLDOWN_SEC = _get_positive_number_env("PER_USER_COOLDOWN_SEC", 4, float)  # simple flood control
+THINKING_MESSAGE = os.getenv("THINKING_MESSAGE", "⏳ Thinking…")
+
+DISCORD_MESSAGE_LIMIT = 2000
+MESSAGE_HEADER = f"🤖 {AI_NAME}:\n"
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 POWERSHELL_SCRIPT = os.path.join(SCRIPT_DIR, "BackgroundAI_Bot.ps1")
@@ -82,8 +102,9 @@ def split_discord_message(text: str, limit: int = 2000) -> List[str]:
 def powershell_prefix() -> List[str]:
     # Prefer pwsh (Core) if present; fallback to Windows PowerShell
     for exe in ("pwsh", "powershell"):
-        return [exe, "-NoProfile", "-ExecutionPolicy", "Bypass"]
-    return ["pwsh", "-NoProfile"]
+        if shutil.which(exe):
+            return [exe, "-NoProfile", "-ExecutionPolicy", "Bypass"]
+    raise FileNotFoundError("PowerShell executable not found")
 
 def mentions_none() -> discord.AllowedMentions:
     return discord.AllowedMentions.none()
@@ -103,7 +124,10 @@ async def ask_ai_async(question: str) -> Tuple[str, int]:
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=AI_TIMEOUT_SEC)
         except asyncio.TimeoutError:
+            log.warning("AI timed out after %ss; terminating child process.", AI_TIMEOUT_SEC)
             proc.kill()
+            with contextlib.suppress(ProcessLookupError):
+                await proc.wait()
             return (f"⚠️ AI timed out after {AI_TIMEOUT_SEC}s. Try again with a shorter question.", 124)
 
         exit_code = await proc.wait()
@@ -115,9 +139,9 @@ async def ask_ai_async(question: str) -> Tuple[str, int]:
 
     except FileNotFoundError:
         return ("❌ PowerShell (pwsh/powershell) not found. Install PowerShell 7 or fix PATH.", 127)
-    except Exception as e:
+    except Exception:
         log.exception("Error calling AI")
-        return (f"⚠️ Error calling AI: {e}", 1)
+        return ("⚠️ Error calling AI. Please try again later.", 1)
 
 def is_cooldown_ok(guild_id: int, user_id: int, now: float) -> bool:
     key = (guild_id, user_id)
@@ -139,6 +163,7 @@ async def on_ready():
     except Exception as e:
         log.exception("Slash sync error: %s", e)
 
+@app_commands.checks.has_permissions(manage_channels=True)
 @bot.tree.command(name="start", description="Create an #ai channel for chatting with the bot")
 async def start(interaction: discord.Interaction):
     guild = interaction.guild
@@ -160,6 +185,14 @@ async def start(interaction: discord.Interaction):
     server_question_count[guild.id] = 0
     guild_locks[guild.id] = asyncio.Lock()
     await interaction.response.send_message(f"✅ AI channel created: {channel.mention}", ephemeral=True)
+
+
+@start.error
+async def start_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("❌ You need **Manage Channels** to use this.", ephemeral=True)
+    else:
+        await interaction.response.send_message("⚠️ Error processing command.", ephemeral=True)
 
 @bot.tree.command(name="aiinfo", description="Show NightshadeAI status for this server")
 async def aiinfo(interaction: discord.Interaction):
@@ -245,9 +278,12 @@ async def on_message(message: discord.Message):
 
         # Tag nonzero exit with a subtle prefix to aid debugging
         prefix = "" if exit_code == 0 else f"[exit {exit_code}] "
-        for chunk in split_discord_message(prefix + response):
+        header = MESSAGE_HEADER
+        chunk_limit = max(1, DISCORD_MESSAGE_LIMIT - len(header))
+        text_to_split = prefix + response
+        for chunk in split_discord_message(text_to_split, limit=chunk_limit):
             await message.channel.send(
-                f"🤖 {AI_NAME}:\n{chunk}",
+                f"{header}{chunk}",
                 allowed_mentions=mentions_none()
             )
 
