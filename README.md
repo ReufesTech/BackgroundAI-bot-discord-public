@@ -72,13 +72,16 @@ All numeric values must be set to positive numbers; invalid values will prevent 
 
 ## ⚡ Quick Start
 
+> ℹ️ The bot requires **Python 3.10+** and the [`discord.py`](https://pypi.org/project/discord.py/) package.
+
 ```bash
 # clone repo
 git clone https://github.com/dellpatcher/BackgroundAI-bot-discord-public.git
 cd BackgroundAI-bot-discord-public/BackgroundAI-bot-discord-main/ai
 
-# install requirements
-pip install -r requirements.txt
+# install dependencies
+pip install --upgrade pip
+pip install discord.py
 
 # set your bot token
 setx DISCORD_TOKEN "your_discord_bot_token_here"
@@ -88,3 +91,4 @@ setx OLLAMA_HOST "http://localhost:11434"
 
 # run the bot
 python bot.py
+```
