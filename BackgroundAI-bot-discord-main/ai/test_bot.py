@@ -100,6 +100,28 @@ os.environ.setdefault("DISCORD_TOKEN", "test-token")
 from ai import bot
 
 
+class CleanAiOutputTests(unittest.TestCase):
+    def test_strips_persona_and_noise_and_collapses_blank_lines(self):
+        raw = (
+            "NightshadeAI: Hello\x1b[31m World\x1b[0m\n"
+            "  nightshadeai: Second\u2800line\n"
+            "\n\n\n"
+            "Third line\u2801\n"
+            "\n\n\n"
+        )
+
+        cleaned = bot.clean_ai_output(raw)
+
+        self.assertEqual("Hello World\nSecondline\n\nThird line", cleaned)
+
+    def test_preserves_persona_prefix_when_requested(self):
+        raw = "NightshadeAI: Reply with persona intact."
+
+        cleaned = bot.clean_ai_output(raw, remove_persona_tag=False)
+
+        self.assertEqual("NightshadeAI: Reply with persona intact.", cleaned)
+
+
 class PowershellPrefixTests(unittest.TestCase):
     @patch("ai.bot.shutil.which")
     def test_prefers_pwsh_when_available(self, mock_which):
