@@ -14,11 +14,26 @@ from discord.ext import commands
 # -------------------------
 # Config
 # -------------------------
-AI_NAME = "NightshadeAI"
-MAX_QUESTIONS_PER_SERVER = 400
-AI_TIMEOUT_SEC = 240                 # overall PS roundtrip timeout
-PER_USER_COOLDOWN_SEC = 4            # simple flood control
-THINKING_MESSAGE = "⏳ Thinking…"
+
+
+def _get_positive_number_env(var_name: str, default, caster):
+    value = os.getenv(var_name)
+    if value is None:
+        return default
+    try:
+        parsed = caster(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{var_name} must be a positive {caster.__name__}") from exc
+    if parsed <= 0:
+        raise ValueError(f"{var_name} must be positive")
+    return parsed
+
+
+AI_NAME = os.getenv("AI_NAME", "NightshadeAI")
+MAX_QUESTIONS_PER_SERVER = _get_positive_number_env("MAX_QUESTIONS_PER_SERVER", 400, int)
+AI_TIMEOUT_SEC = _get_positive_number_env("AI_TIMEOUT_SEC", 240, float)  # overall PS roundtrip timeout
+PER_USER_COOLDOWN_SEC = _get_positive_number_env("PER_USER_COOLDOWN_SEC", 4, float)  # simple flood control
+THINKING_MESSAGE = os.getenv("THINKING_MESSAGE", "⏳ Thinking…")
 
 DISCORD_MESSAGE_LIMIT = 2000
 MESSAGE_HEADER = f"🤖 {AI_NAME}:\n"

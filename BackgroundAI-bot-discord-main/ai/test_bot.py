@@ -1,4 +1,5 @@
 import asyncio
+import importlib
 import os
 import sys
 import types
@@ -298,6 +299,37 @@ class AskAiAsyncTimeoutTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(dummy_proc.killed)
         self.assertEqual(dummy_proc.wait.await_count, 1)
         self.assertIn("timed out", " ".join(cm.output).lower())
+
+
+class ConfigEnvironmentOverrideTests(unittest.TestCase):
+    def tearDown(self):
+        importlib.reload(bot)
+
+    def test_ai_name_override_updates_message_header(self):
+        with patch.dict(os.environ, {"AI_NAME": "CustomAI"}, clear=False):
+            importlib.reload(bot)
+            self.assertEqual("CustomAI", bot.AI_NAME)
+            self.assertTrue(bot.MESSAGE_HEADER.startswith("🤖 CustomAI:"))
+
+    def test_max_questions_override(self):
+        with patch.dict(os.environ, {"MAX_QUESTIONS_PER_SERVER": "123"}, clear=False):
+            importlib.reload(bot)
+            self.assertEqual(123, bot.MAX_QUESTIONS_PER_SERVER)
+
+    def test_ai_timeout_override(self):
+        with patch.dict(os.environ, {"AI_TIMEOUT_SEC": "12.5"}, clear=False):
+            importlib.reload(bot)
+            self.assertEqual(12.5, bot.AI_TIMEOUT_SEC)
+
+    def test_per_user_cooldown_override(self):
+        with patch.dict(os.environ, {"PER_USER_COOLDOWN_SEC": "7"}, clear=False):
+            importlib.reload(bot)
+            self.assertEqual(7.0, bot.PER_USER_COOLDOWN_SEC)
+
+    def test_thinking_message_override(self):
+        with patch.dict(os.environ, {"THINKING_MESSAGE": "processing"}, clear=False):
+            importlib.reload(bot)
+            self.assertEqual("processing", bot.THINKING_MESSAGE)
 
 
 if __name__ == "__main__":

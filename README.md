@@ -40,9 +40,9 @@ It merges reasoning and creativity from multiple LLMs into one unified, human-li
 ---
 
 ## ✨ Features
-- 🧵 **Parallel model fan-out + summarization merge**  
-- ⚙️ **PowerShell backend orchestration** via Ollama  
-- 💬 `/start` command creates a dedicated `#ai` channel  
+- 🧵 **Parallel model fan-out + summarization merge**
+- ⚙️ **PowerShell backend orchestration** via Ollama
+- 💬 `/start` command creates a dedicated `#ai` channel
 - 📢 Responds automatically when mentioned inside `#ai`  
 - 🧹 Cleans responses (removes spinners, ANSI codes, non-printables)  
 - 📏 Splits messages safely to Discord’s 2000-char limit  
@@ -50,7 +50,23 @@ It merges reasoning and creativity from multiple LLMs into one unified, human-li
 - 🔒 Per-server question limits (default **400**)  
 - 🕒 Per-user cooldowns to prevent flooding  
 - 🔍 Structured logging for debugging  
-- 🌐 Supports local or remote Ollama daemons (`OLLAMA_HOST`)  
+- 🌐 Supports local or remote Ollama daemons (`OLLAMA_HOST`)
+
+---
+
+## 🔧 Configuration
+
+Customize the bot’s runtime behavior with environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AI_NAME` | `NightshadeAI` | Display name used in responses and status messages. |
+| `MAX_QUESTIONS_PER_SERVER` | `400` | Maximum number of questions allowed per guild before requiring a reset (must be a positive integer). |
+| `AI_TIMEOUT_SEC` | `240` | Timeout, in seconds, for the PowerShell backend round trip (must be a positive number). |
+| `PER_USER_COOLDOWN_SEC` | `4` | Minimum seconds users must wait between questions in the same guild (must be a positive number). |
+| `THINKING_MESSAGE` | `⏳ Thinking…` | Message shown while the AI is generating a reply. |
+
+All numeric values must be set to positive numbers; invalid values will prevent the bot from starting.
 
 ---
 
