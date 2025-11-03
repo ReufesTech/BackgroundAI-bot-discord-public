@@ -163,6 +163,7 @@ async def on_ready():
     except Exception as e:
         log.exception("Slash sync error: %s", e)
 
+@app_commands.checks.has_permissions(manage_channels=True)
 @bot.tree.command(name="start", description="Create an #ai channel for chatting with the bot")
 async def start(interaction: discord.Interaction):
     guild = interaction.guild
@@ -184,6 +185,14 @@ async def start(interaction: discord.Interaction):
     server_question_count[guild.id] = 0
     guild_locks[guild.id] = asyncio.Lock()
     await interaction.response.send_message(f"✅ AI channel created: {channel.mention}", ephemeral=True)
+
+
+@start.error
+async def start_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("❌ You need **Manage Channels** to use this.", ephemeral=True)
+    else:
+        await interaction.response.send_message("⚠️ Error processing command.", ephemeral=True)
 
 @bot.tree.command(name="aiinfo", description="Show NightshadeAI status for this server")
 async def aiinfo(interaction: discord.Interaction):
