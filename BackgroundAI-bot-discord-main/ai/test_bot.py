@@ -122,6 +122,49 @@ class CleanAiOutputTests(unittest.TestCase):
         self.assertEqual("NightshadeAI: Reply with persona intact.", cleaned)
 
 
+class SplitDiscordMessageTests(unittest.TestCase):
+    def test_returns_single_chunk_when_under_limit(self):
+        text = "short message"
+
+        chunks = bot.split_discord_message(text, limit=50)
+
+        self.assertEqual(["short message"], chunks)
+
+    def test_prefers_newline_before_limit(self):
+        text = "First line stays within limit\nSecond line continues after limit"
+
+        chunks = bot.split_discord_message(text, limit=40)
+
+        self.assertEqual(2, len(chunks))
+        self.assertEqual("First line stays within limit", chunks[0])
+        self.assertEqual("Second line continues after limit", chunks[1])
+
+    def test_handles_long_text_with_only_spaces(self):
+        text = " " * 25
+
+        chunks = bot.split_discord_message(text, limit=10)
+
+        self.assertEqual(1, len(chunks))
+        self.assertEqual("", chunks[0])
+
+    def test_hard_split_on_long_word(self):
+        text = "a" * 25
+
+        chunks = bot.split_discord_message(text, limit=10)
+
+        self.assertEqual(["a" * 10, "a" * 10, "a" * 5], chunks)
+
+    def test_strips_trailing_whitespace_in_intermediate_chunks(self):
+        text = "chunk1 trailing   \nchunk2 trailing   \nchunk3 trailing   \nchunk4"
+
+        chunks = bot.split_discord_message(text, limit=25)
+
+        self.assertEqual(3, len(chunks))
+        self.assertEqual("chunk1 trailing", chunks[0])
+        self.assertEqual("chunk2 trailing", chunks[1])
+        self.assertEqual("chunk3 trailing   \nchunk4", chunks[2])
+
+
 class PowershellPrefixTests(unittest.TestCase):
     @patch("ai.bot.shutil.which")
     def test_prefers_pwsh_when_available(self, mock_which):
