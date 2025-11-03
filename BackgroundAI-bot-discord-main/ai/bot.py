@@ -3,6 +3,7 @@ import re
 import asyncio
 import sys
 import logging
+import shutil
 from typing import Dict, Tuple, List
 
 import discord
@@ -82,8 +83,9 @@ def split_discord_message(text: str, limit: int = 2000) -> List[str]:
 def powershell_prefix() -> List[str]:
     # Prefer pwsh (Core) if present; fallback to Windows PowerShell
     for exe in ("pwsh", "powershell"):
-        return [exe, "-NoProfile", "-ExecutionPolicy", "Bypass"]
-    return ["pwsh", "-NoProfile"]
+        if shutil.which(exe):
+            return [exe, "-NoProfile", "-ExecutionPolicy", "Bypass"]
+    raise FileNotFoundError("PowerShell executable not found")
 
 def mentions_none() -> discord.AllowedMentions:
     return discord.AllowedMentions.none()
